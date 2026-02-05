@@ -1,0 +1,14 @@
+[project]
+name = "vzlotn-ae-2-5"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "gradio>=6.5.1",
+    "langchain>=1.2.8",
+    "langchain-community>=0.4.1",
+    "langchain-openai>=1.1.7",
+    "langchain-text-splitters>=1.1.0",
+    "openai>=2.16.0",
+]

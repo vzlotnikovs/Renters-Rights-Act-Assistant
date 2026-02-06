@@ -1,37 +1,70 @@
 import os
 from dotenv import load_dotenv
-from openai import OpenAI
 from langchain_community.document_loaders import WebBaseLoader
+from langchain.chat_models import init_chat_model
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import FAISS
+from langchain.tools import tool
+from langchain.agents import AgentState, create_agent
 import bs4
 
-# Step 0: Load environment variables from keys.env
 load_dotenv(dotenv_path="../keys.env")
+
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+if not OPENAI_API_KEY:
+    raise RuntimeError("OPENAI_API_KEY not set")
 
-client = OpenAI(api_key=OPENAI_API_KEY)
-model = "text-embedding-3-small"
+model = init_chat_model("gpt-5-nano")
 
-# Step 1: Load the raw data or documents
+URL = "https://www.gov.uk/government/publications/guide-to-the-renters-rights-act/guide-to-the-renters-rights-act"
+K_CONSTANT = 2
+
 loader = WebBaseLoader(
-    web_paths=("https://www.gov.uk/government/publications/guide-to-the-renters-rights-act/guide-to-the-renters-rights-act",),
+    web_paths=(URL,),
     bs_kwargs=dict(
         parse_only=bs4.SoupStrainer(
             class_=("post-content", "post-title", "post-header")
         )
     ),
 )
-documents = loader.load()
 
-# Step 2: Split documents into smaller chunks
-text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
-chunks = text_splitter.split_documents(documents)
+docs = loader.load()
+if not docs:
+    raise RuntimeError("No documents loaded")
 
-# Step 3: Generate embeddings
-# Use OpenAI Embeddings (requires OpenAI API key)
-openai_embeddings = OpenAIEmbeddings(openai_api_key=OPENAI_API_KEY)
+text_splitter = RecursiveCharacterTextSplitter(
+    chunk_size=1000,
+    chunk_overlap=200,
+    add_start_index=True,
+)
 
-# Step 4: Store embeddings in a vector database (FAISS in this case)
-vector_store = FAISS.from_documents(chunks, openai_embeddings)
+all_splits = text_splitter.split_documents(docs)
+print(f"Split blog post into {len(all_splits)} sub-documents.")
+
+embedding_model = OpenAIEmbeddings(
+    model="text-embedding-3-small",
+    openai_api_key=OPENAI_API_KEY,
+)
+
+vector_store = FAISS.from_documents(all_splits, embedding_model)
+vector_store.save_local("faiss_renters_rights")
+
+# Construct a tool for retrieving context
+@tool(response_format="content_and_artifact")
+def retrieve_context(query: str):
+    """Retrieve information to help answer a query."""
+    retrieved_docs = vector_store.similarity_search(query, k=K_CONSTANT)
+    serialized = "\n\n".join(
+        (f"Source: {doc.metadata.get('source', 'Unknown')}\nContent: {doc.page_content}")
+        for doc in retrieved_docs
+    )
+    return serialized, retrieved_docs
+
+tools = [retrieve_context]
+
+prompt = (
+    "You have access to a tool that retrieves context from a webpage. "
+    "Use the tool to help answer user queries."
+)
+agent = create_agent(model, tools, system_prompt=prompt)

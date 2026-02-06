@@ -11,6 +11,9 @@ import bs4
 load_dotenv(dotenv_path="../keys.env")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
+client = OpenAI(api_key=OPENAI_API_KEY)
+model = "text-embedding-3-small"
+
 # Step 1: Load the raw data or documents
 loader = WebBaseLoader(
     web_paths=("https://www.gov.uk/government/publications/guide-to-the-renters-rights-act/guide-to-the-renters-rights-act",),

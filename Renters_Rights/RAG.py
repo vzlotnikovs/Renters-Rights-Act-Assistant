@@ -20,18 +20,19 @@ model = init_chat_model("gpt-5-nano")
 URL = "https://www.gov.uk/government/publications/guide-to-the-renters-rights-act/guide-to-the-renters-rights-act"
 K_CONSTANT = 2
 
+bs4_strainer = bs4.SoupStrainer("main")
 loader = WebBaseLoader(
     web_paths=(URL,),
-    bs_kwargs=dict(
-        parse_only=bs4.SoupStrainer(
-            class_=("post-content", "post-title", "post-header")
-        )
-    ),
+    bs_kwargs={"parse_only": bs4_strainer},
 )
 
 docs = loader.load()
 if not docs:
     raise RuntimeError("No documents loaded")
+
+print(f"Total characters: {len(docs[0].page_content)}")
+if len(docs[0].page_content) == 0:
+    raise RuntimeError("Error loading document content")
 
 text_splitter = RecursiveCharacterTextSplitter(
     chunk_size=1000,
@@ -54,6 +55,11 @@ vector_store = Chroma(
 )
 
 ids = vector_store.add_documents(documents=all_splits)
+results = vector_store.similarity_search(
+    "What is the notice period for evicting a tenant assuming 1A grounds (sale of dwelling-house)?",
+)
+
+print(results[0])
 
 '''
 # Construct a tool for retrieving context

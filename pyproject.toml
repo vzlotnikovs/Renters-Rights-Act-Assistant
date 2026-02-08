@@ -3,9 +3,10 @@ name = "vzlotn-ae-2-5"
 version = "0.1.0"
 description = "UK Renters Rights Act Chatbot"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = "==3.11.*"
 dependencies = [
     "bs4>=0.0.2",
+    "dotenv>=0.9.9",
     "gradio>=6.5.1",
     "langchain>=1.2.8",
     "langchain-chroma>=1.1.0",

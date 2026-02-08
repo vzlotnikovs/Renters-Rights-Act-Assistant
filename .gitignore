@@ -1,3 +1,4 @@
 *.env
 .venv/
 .gradio/
+Renters_Rights/chroma_langchain_db/

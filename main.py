@@ -14,7 +14,7 @@ def main():
         title="Renters' Rights Act Assistant",
         description="Ask me any question about the Renters' Rights Act",
         examples=["How often can a landlord raise the rent?", "What is the notice period for evicting a tenant assuming the landlord wants to sell the property?", "When does the Act take effect?"],
-        cache_examples=True,
+        cache_examples=False,
     ).launch(
         #share=True
     )

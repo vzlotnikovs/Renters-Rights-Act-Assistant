@@ -34,6 +34,9 @@ print(f"Total characters: {len(docs[0].page_content)}")
 if len(docs[0].page_content) == 0:
     raise RuntimeError("Error loading document content")
 
+for d in docs:
+    d.metadata["source"] = URL
+
 text_splitter = RecursiveCharacterTextSplitter(
     chunk_size=1000,
     chunk_overlap=200,
@@ -44,7 +47,7 @@ all_splits = text_splitter.split_documents(docs)
 print(f"Split blog post into {len(all_splits)} sub-documents.")
 
 embedding_model = OpenAIEmbeddings(
-    model="text-embedding-3-large",
+    model="text-embedding-3-small",
     openai_api_key=OPENAI_API_KEY,
 )
 
@@ -69,8 +72,11 @@ def retrieve_context(query: str):
 tools = [retrieve_context]
 
 prompt = (
-    "You have access to a tool that retrieves context from a webpage. "
-    "Use the tool to help answer user queries."
+    "You are an assistant answering questions ONLY about the UK Renters' Rights Act (applicable to England only).\n"
+    "if the question is not related to the Renters' Rights Act, say you don't know and that you can only answer questions about the Renters' Rights Act.\n"
+    "To ensure an accurate response, call the tool(s) available to you before answering a question.\n"
+    "When possible, mention which part of the Act or section you are referring to.\n"
+    "Do not answer questions that are not related to the Renters' Rights Act."
 )
 agent = create_agent(model, tools, system_prompt=prompt)
 

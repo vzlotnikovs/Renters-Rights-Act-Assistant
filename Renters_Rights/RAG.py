@@ -55,14 +55,7 @@ vector_store = Chroma(
 )
 
 ids = vector_store.add_documents(documents=all_splits)
-results = vector_store.similarity_search(
-    "What is the notice period for evicting a tenant assuming 1A grounds (sale of dwelling-house)?",
-)
 
-print(results[0])
-
-'''
-# Construct a tool for retrieving context
 @tool(response_format="content_and_artifact")
 def retrieve_context(query: str):
     """Retrieve information to help answer a query."""
@@ -80,4 +73,11 @@ prompt = (
     "Use the tool to help answer user queries."
 )
 agent = create_agent(model, tools, system_prompt=prompt)
-'''
+
+query = "What is the notice period for evicting a tenant assuming 1A grounds (sale of dwelling-house)?"
+
+for event in agent.stream(
+    {"messages": [{"role": "user", "content": query}]},
+    stream_mode="values",
+):
+    event["messages"][-1].pretty_print()

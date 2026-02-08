@@ -4,7 +4,7 @@ from langchain_community.document_loaders import WebBaseLoader
 from langchain.chat_models import init_chat_model
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_openai import OpenAIEmbeddings
-from langchain_community.vectorstores import FAISS
+from langchain_chroma import Chroma
 from langchain.tools import tool
 from langchain.agents import AgentState, create_agent
 import bs4
@@ -47,9 +47,15 @@ embedding_model = OpenAIEmbeddings(
     openai_api_key=OPENAI_API_KEY,
 )
 
-vector_store = FAISS.from_documents(all_splits, embedding_model)
-vector_store.save_local("faiss_renters_rights")
+vector_store = Chroma(
+    collection_name="renters_rights",
+    embedding_function=embedding_model,
+    persist_directory="./chroma_langchain_db",
+)
 
+ids = vector_store.add_documents(documents=all_splits)
+
+'''
 # Construct a tool for retrieving context
 @tool(response_format="content_and_artifact")
 def retrieve_context(query: str):
@@ -68,3 +74,4 @@ prompt = (
     "Use the tool to help answer user queries."
 )
 agent = create_agent(model, tools, system_prompt=prompt)
+'''

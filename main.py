@@ -2,7 +2,7 @@ import gradio as gr
 from Renters_Rights.RAG import renters_rights_chatbot
 
 def main():
-    print("Welcome to the Renters' Rights Act chatbot!")
+    print("Welcome to the Renters' Rights Act Assistant!")
 
     def chat_function(message, history):
         return renters_rights_chatbot(message)

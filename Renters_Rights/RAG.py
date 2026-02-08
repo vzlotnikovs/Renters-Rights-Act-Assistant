@@ -1,4 +1,6 @@
 import os
+import uuid
+import bs4
 from datetime import datetime, timedelta
 from dateutil import parser
 from dotenv import load_dotenv
@@ -8,8 +10,8 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_openai import OpenAIEmbeddings
 from langchain_chroma import Chroma
 from langchain.tools import tool
+from langgraph.checkpoint.memory import InMemorySaver
 from langchain.agents import AgentState, create_agent
-import bs4
 
 load_dotenv(dotenv_path="../keys.env")
 
@@ -61,7 +63,7 @@ vector_store = Chroma(
 
 ids = vector_store.add_documents(documents=all_splits)
 
-@tool
+@tool(response_format="content_and_artifact")
 def retrieve_context(query: str):
     """Retrieve information to help answer a query."""
     retrieved_docs = vector_store.similarity_search(query, k=K_CONSTANT)
@@ -71,30 +73,31 @@ def retrieve_context(query: str):
     )
     return serialized, retrieved_docs
 
-@tool
-def calculate_effective_date(input_date: str, notice_period_days: str):
+@tool(response_format="content_and_artifact")
+def calculate_effective_date(notice_date: str, notice_period_days: str):
     """
-    Calculate effective date (new rent start, vacate date, etc.) as an output given notice date (input_date) 
+    Calculate effective date (new rent start date, date to vacate the property, etc.) given notice date (notice_date) 
     and notice period (notice_period_days) from Renters' Rights Act.
     
     RAG determines notice_period_days based on different scenarios:
-    - Rent increases: 2 months
-    - Possession (landlord wants to sell property, >12mo tenancy): 4 months
-    - Other grounds: 2 weeks, 1 month, 2 months, etc. as per RAG
+    - Rent increases
+    - Possession grounds (e.g. landlord wants to sell property)
+    - Other grounds
     
     Args:
-        input_date: Notice date ("2026-02-08", "today", "1 Jan 2026", "08/02/2026")
+        notice_date: Notice date ("2026-02-08", "today", "1 Jan 2026", "08/02/2026")
         notice_period_days: Days as string from RAG ("30", "120", etc.)
     """
     try:
-        if input_date.lower() == "today":
+        if notice_date.lower() == "today":
             start_date = datetime.now()
         else:
-            start_date = parser.parse(input_date).date()
+            start_date = parser.parse(notice_date).date()
         
         days = int(notice_period_days)
         end_date = start_date + timedelta(days=days)
-        return end_date.strftime("%Y-%m-%d")
+        effective_date = end_date.strftime("%Y-%m-%d")
+        return effective_date, {"date": effective_date, "days": days}
         
     except ValueError as e:
         return f"Invalid input: {e}. Use format like '2026-02-08' or 'today' for date, number for days."
@@ -108,28 +111,23 @@ prompt = (
     "Where appropriate, mention which part of the Act or section you are referring to."
 )
 
+checkpointer = InMemorySaver()
+
 agent = create_agent(
     model=chatbot_model,
     tools=[retrieve_context, calculate_effective_date],
     system_prompt=prompt,
+    checkpointer=checkpointer,
 )
 
-def renters_rights_chatbot(query: str) -> str:
-    """Run the agent on a single-turn user query and return the final text reply."""
-    result = agent.invoke({"messages": [{"role": "user", "content": query}]})
-    # `result["messages"][-1]` should be the assistant message object
+def renters_rights_chatbot(query: str, thread_id: str = None) -> str:
+    if thread_id is None:
+        thread_id = str(uuid.uuid4())
+    config = {"configurable": {"thread_id": thread_id}}
+    result = agent.invoke(
+        {"messages": [{"role": "user", "content": query}]},
+        config=config,
+    )
     last = result["messages"][-1]
-    # Adapt depending on your message type; often `.content` or `.text`
-    content = getattr(last, "content", None) or getattr(last, "text", "")
+    content = last.content if hasattr(last, 'content') else str(last)
     return content
-
-'''
-Example query
-query = "What is the notice period for evicting a tenant assuming 1A grounds (sale of dwelling-house)?"
-
-for event in agent.stream(
-    {"messages": [{"role": "user", "content": query}]},
-    stream_mode="values",
-):
-    event["messages"][-1].pretty_print()
-'''

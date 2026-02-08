@@ -1,4 +1,6 @@
 *.env
 .venv/
 .gradio/
+chroma_langchain_db/
 Renters_Rights/chroma_langchain_db/
+Renters_Rights/__pycache__/

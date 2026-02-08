@@ -44,7 +44,7 @@ all_splits = text_splitter.split_documents(docs)
 print(f"Split blog post into {len(all_splits)} sub-documents.")
 
 embedding_model = OpenAIEmbeddings(
-    model="text-embedding-3-small",
+    model="text-embedding-3-large",
     openai_api_key=OPENAI_API_KEY,
 )
 
@@ -74,6 +74,17 @@ prompt = (
 )
 agent = create_agent(model, tools, system_prompt=prompt)
 
+def renters_rights_chatbot(query: str) -> str:
+    """Run the agent on a single-turn user query and return the final text reply."""
+    result = agent.invoke({"messages": [{"role": "user", "content": query}]})
+    # `result["messages"][-1]` should be the assistant message object
+    last = result["messages"][-1]
+    # Adapt depending on your message type; often `.content` or `.text`
+    content = getattr(last, "content", None) or getattr(last, "text", "")
+    return content
+
+'''
+Example query
 query = "What is the notice period for evicting a tenant assuming 1A grounds (sale of dwelling-house)?"
 
 for event in agent.stream(
@@ -81,3 +92,4 @@ for event in agent.stream(
     stream_mode="values",
 ):
     event["messages"][-1].pretty_print()
+'''

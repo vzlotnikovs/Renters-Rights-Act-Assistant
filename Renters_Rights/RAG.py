@@ -121,7 +121,7 @@ agent = create_agent(
     checkpointer=checkpointer,
 )
 
-def renters_rights_chatbot(query: str, thread_id: str = None) -> str:
+def renters_rights_assistant(query: str, thread_id: str = None) -> str:
     if thread_id is None:
         thread_id = str(uuid.uuid4())
     config = {"configurable": {"thread_id": thread_id}}

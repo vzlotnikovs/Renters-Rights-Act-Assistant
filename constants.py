@@ -25,7 +25,7 @@ CHUNK_OVERLAP = 200
 # Vector store
 COLLECTION_NAME = "renters_rights"
 PERSIST_DIR = "./chroma_langchain_db"
-K_CONSTANT = 2
+K_CONSTANT = 10
 
 # Chatbot Prompt
 CHATBOT_PROMPT = (

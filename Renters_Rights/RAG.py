@@ -71,10 +71,10 @@ print(f"Total characters (PDF source): {len(pdf_docs[0].page_content)}")
 
 
 docs = web_docs + pdf_docs
-if len(docs[0].page_content) == 0:
+if len(docs) == 0:
     raise RuntimeError("Error loading source content")
 else:
-    print(f"Source content loaded successfully ({len(docs[0].page_content)} characters across {len(docs)} sources.)")
+    print("Source content loaded successfully.")
 
 text_splitter = RecursiveCharacterTextSplitter(
     chunk_size=CHUNK_SIZE,
@@ -97,6 +97,10 @@ vector_store = Chroma(
 )
 
 ids = vector_store.add_documents(documents=all_splits)
+
+print("Total splits:", len(all_splits))
+print("PDF splits:", sum(1 for d in all_splits if d.metadata.get("source") == str(PDF_PATH)))
+print("Web splits:", sum(1 for d in all_splits if d.metadata.get("source") == URL))
 
 
 @tool

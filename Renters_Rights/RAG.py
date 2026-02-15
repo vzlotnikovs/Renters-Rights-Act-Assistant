@@ -20,10 +20,8 @@ os.environ["USER_AGENT"] = USER_AGENT
 
 from dotenv import load_dotenv
 from pathlib import Path
-import uuid
 import bs4
 import re
-from typing import List, Dict
 from datetime import datetime, timedelta
 from dateutil import parser
 from langchain_community.document_loaders import WebBaseLoader, PyPDFLoader
@@ -142,7 +140,7 @@ def extract_notice_period(query: str) -> str:
             for match in re.finditer(pattern, text):
                 num_str = match.group(1)
                 num = float(num_str)
-                
+
                 days = 0
                 full_match = match.group(0)
 
@@ -204,10 +202,7 @@ agent = create_agent(
     checkpointer=checkpointer,
 )
 
-
-def renters_rights_assistant(query: str, thread_id: str = None) -> str:
-    if thread_id is None:
-        thread_id = str(uuid.uuid4())
+def renters_rights_assistant(query: str, thread_id: str = "Test_thread") -> str:
     config = {"configurable": {"thread_id": thread_id}}
     result = agent.invoke(
         {"messages": [{"role": "user", "content": query}]},

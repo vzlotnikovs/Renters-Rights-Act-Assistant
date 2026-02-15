@@ -45,14 +45,14 @@ BASE_DIR = Path(__file__).resolve().parent
 PDF_PATH = BASE_DIR / SUB_DIR / PDF_FILENAME
 
 bs4_strainer = bs4.SoupStrainer(TAG)
-loader = WebBaseLoader(
+web_loader = WebBaseLoader(
     web_paths=(URL,),
     bs_kwargs={"parse_only": bs4_strainer},
 )
 
 pdf_loader = PyPDFLoader(str(PDF_PATH))
 
-web_docs = loader.load()
+web_docs = web_loader.load()
 if not web_docs:
     raise RuntimeError("No web documents loaded")
 
@@ -73,6 +73,8 @@ print(f"Total characters (PDF source): {len(pdf_docs[0].page_content)}")
 docs = web_docs + pdf_docs
 if len(docs[0].page_content) == 0:
     raise RuntimeError("Error loading source content")
+else:
+    print(f"Source content loaded successfully ({len(docs[0].page_content)} characters across {len(docs)} sources.)")
 
 text_splitter = RecursiveCharacterTextSplitter(
     chunk_size=CHUNK_SIZE,
@@ -112,13 +114,8 @@ def retrieve_context(query: str):
 @tool
 def calculate_effective_date(notice_date: str, notice_period_days: str):
     """
-    Calculate effective date (new rent start date, date to vacate the property, etc.) given notice date (notice_date)
+    Calculate effective date (e.g. date to vacate the property, date when the new rent becomes effective, etc.) given notice date (notice_date)
     and notice period (notice_period_days) from Renters' Rights Act.
-
-    RAG determines notice_period_days based on different scenarios:
-    - Rent increases
-    - Possession grounds (e.g. landlord wants to sell property)
-    - Other grounds
 
     Args:
         notice_date: Notice date ("2026-02-08", "today", "1 Jan 2026", "08/02/2026")

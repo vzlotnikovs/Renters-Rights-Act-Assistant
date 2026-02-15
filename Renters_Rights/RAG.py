@@ -4,7 +4,8 @@ import bs4
 from datetime import datetime, timedelta
 from dateutil import parser
 from dotenv import load_dotenv
-from langchain_community.document_loaders import WebBaseLoader
+from pathlib import Path
+from langchain_community.document_loaders import WebBaseLoader, PyPDFLoader
 from langchain.chat_models import init_chat_model
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_openai import OpenAIEmbeddings
@@ -22,6 +23,8 @@ if not OPENAI_API_KEY:
 chatbot_model = init_chat_model("gpt-5-nano")
 
 URL = "https://www.gov.uk/government/publications/guide-to-the-renters-rights-act/guide-to-the-renters-rights-act"
+BASE_DIR = Path(__file__).resolve().parent
+PDF_PATH = BASE_DIR / "Database" / "JLL-News-Renters-Rights-Act.pdf"
 K_CONSTANT = 2
 
 bs4_strainer = bs4.SoupStrainer("main")
@@ -30,16 +33,28 @@ loader = WebBaseLoader(
     bs_kwargs={"parse_only": bs4_strainer},
 )
 
-docs = loader.load()
-if not docs:
-    raise RuntimeError("No documents loaded")
+pdf_loader = PyPDFLoader(str(PDF_PATH))
 
-print(f"Total characters: {len(docs[0].page_content)}")
+web_docs = loader.load()
+if not web_docs:
+    raise RuntimeError("No web documents loaded")
+
+pdf_docs = pdf_loader.load()
+if not pdf_docs:
+    raise RuntimeError("No PDF documents loaded")
+
+for doc in web_docs:
+    doc.metadata["source"] = URL
+
+for doc in pdf_docs:
+    doc.metadata["source"] = str(PDF_PATH)
+
+docs = web_docs + pdf_docs
+
+print(f"Total characters (web source): {len(web_docs[0].page_content)}")
+print(f"Total characters (PDF source): {len(pdf_docs[0].page_content)}")
 if len(docs[0].page_content) == 0:
-    raise RuntimeError("Error loading document content")
-
-for d in docs:
-    d.metadata["source"] = URL
+    raise RuntimeError("Error loading source content")
 
 text_splitter = RecursiveCharacterTextSplitter(
     chunk_size=1000,
@@ -63,7 +78,7 @@ vector_store = Chroma(
 
 ids = vector_store.add_documents(documents=all_splits)
 
-@tool(response_format="content_and_artifact")
+@tool
 def retrieve_context(query: str):
     """Retrieve information to help answer a query."""
     retrieved_docs = vector_store.similarity_search(query, k=K_CONSTANT)
@@ -73,7 +88,7 @@ def retrieve_context(query: str):
     )
     return serialized, retrieved_docs
 
-@tool(response_format="content_and_artifact")
+@tool
 def calculate_effective_date(notice_date: str, notice_period_days: str):
     """
     Calculate effective date (new rent start date, date to vacate the property, etc.) given notice date (notice_date) 
@@ -100,7 +115,7 @@ def calculate_effective_date(notice_date: str, notice_period_days: str):
         return effective_date, {"date": effective_date, "days": days}
         
     except ValueError as e:
-        return f"Invalid input: {e}. Use format like '2026-02-08' or 'today' for date, number for days."
+        return f"Invalid input: {e}. Use format like '2026-02-08' or 'today' for dates, and use numbers for days."
     except Exception as e:
         return f"Calculation error: {e}"
 

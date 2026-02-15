@@ -13,10 +13,10 @@ def main():
         textbox=gr.Textbox(placeholder="Ask me any question about the Renters' Rights Act", container=False, scale=7),
         title="Renters' Rights Act Assistant",
         description="Ask me any question about the Renters' Rights Act",
-        examples=[
-            "How often can a landlord raise the rent?", 
-            "What is the notice period for rent arrears?", 
-            "How will the Act be enforced in England?"
+        examples=[ 
+            "What are the key changes introduced by the Renters' Rights Act?",
+            "How long is the notice period for rent arrears?",
+            "What happens to landlords if they don't comply with the Act?"
         ],
     ).launch(
         #share=True

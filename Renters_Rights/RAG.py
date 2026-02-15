@@ -15,7 +15,7 @@ from langchain_openai import OpenAIEmbeddings
 from langchain_chroma import Chroma
 from langchain.tools import tool
 from langgraph.checkpoint.memory import InMemorySaver
-from langchain.agents import AgentState, create_agent
+from langchain.agents import create_agent
 
 load_dotenv(dotenv_path=DOTENV_PATH)
 

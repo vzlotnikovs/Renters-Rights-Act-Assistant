@@ -1,10 +1,13 @@
 import os
+from constants import USER_AGENT, DOTENV_PATH, URL, PDF_FILENAME, SUB_DIR, LLM_MODEL, TAG, CHUNK_SIZE, CHUNK_OVERLAP, EMBEDDINGS_MODEL, COLLECTION_NAME, PERSIST_DIR, K_CONSTANT
+os.environ["USER_AGENT"] = USER_AGENT
+
+from dotenv import load_dotenv
+from pathlib import Path
 import uuid
 import bs4
 from datetime import datetime, timedelta
 from dateutil import parser
-from dotenv import load_dotenv
-from pathlib import Path
 from langchain_community.document_loaders import WebBaseLoader, PyPDFLoader
 from langchain.chat_models import init_chat_model
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -14,20 +17,18 @@ from langchain.tools import tool
 from langgraph.checkpoint.memory import InMemorySaver
 from langchain.agents import AgentState, create_agent
 
-load_dotenv(dotenv_path="../keys.env")
+load_dotenv(dotenv_path=DOTENV_PATH)
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 if not OPENAI_API_KEY:
     raise RuntimeError("OPENAI_API_KEY not set")
 
-chatbot_model = init_chat_model("gpt-5-nano")
+chatbot_model = init_chat_model(LLM_MODEL)
 
-URL = "https://www.gov.uk/government/publications/guide-to-the-renters-rights-act/guide-to-the-renters-rights-act"
 BASE_DIR = Path(__file__).resolve().parent
-PDF_PATH = BASE_DIR / "Database" / "JLL-News-Renters-Rights-Act.pdf"
-K_CONSTANT = 2
+PDF_PATH = BASE_DIR / SUB_DIR / PDF_FILENAME
 
-bs4_strainer = bs4.SoupStrainer("main")
+bs4_strainer = bs4.SoupStrainer(TAG)
 loader = WebBaseLoader(
     web_paths=(URL,),
     bs_kwargs={"parse_only": bs4_strainer},
@@ -57,23 +58,23 @@ if len(docs[0].page_content) == 0:
     raise RuntimeError("Error loading source content")
 
 text_splitter = RecursiveCharacterTextSplitter(
-    chunk_size=1000,
-    chunk_overlap=200,
+    chunk_size=CHUNK_SIZE,
+    chunk_overlap=CHUNK_OVERLAP,
     add_start_index=True,
 )
 
 all_splits = text_splitter.split_documents(docs)
 print(f"Split blog post into {len(all_splits)} sub-documents.")
 
-embedding_model = OpenAIEmbeddings(
-    model="text-embedding-3-small",
+embed_model = OpenAIEmbeddings(
+    model=EMBEDDINGS_MODEL,
     openai_api_key=OPENAI_API_KEY,
 )
 
 vector_store = Chroma(
-    collection_name="renters_rights",
-    embedding_function=embedding_model,
-    persist_directory="./chroma_langchain_db",
+    collection_name=COLLECTION_NAME,
+    embedding_function=embed_model,
+    persist_directory=PERSIST_DIR,
 )
 
 ids = vector_store.add_documents(documents=all_splits)
@@ -82,11 +83,12 @@ ids = vector_store.add_documents(documents=all_splits)
 def retrieve_context(query: str):
     """Retrieve information to help answer a query."""
     retrieved_docs = vector_store.similarity_search(query, k=K_CONSTANT)
-    serialized = "\n\n".join(
-        (f"Source: {doc.metadata.get('source', 'Unknown')}\nContent: {doc.page_content}")
-        for doc in retrieved_docs
-    )
-    return serialized, retrieved_docs
+    bullet_points = []
+    for doc in retrieved_docs:
+        src = doc.metadata.get("source", "Unknown")
+        content = doc.page_content.replace("\n", " ")
+        bullet_points.append(f"Source: {src}\n {content}")
+    return "\n".join(bullet_points)
 
 @tool
 def calculate_effective_date(notice_date: str, notice_period_days: str):
@@ -119,11 +121,12 @@ def calculate_effective_date(notice_date: str, notice_period_days: str):
     except Exception as e:
         return f"Calculation error: {e}"
 
+
 prompt = (
     "You are an assistant answering questions ONLY about the Renters' Rights Act (applicable to England only).\n"
     "if the question is not related to the Renters' Rights Act, say that you don't know and that you can only answer questions about the Renters' Rights Act.\n"
     "To ensure an accurate response, call some or all of the tools available to you before answering a question.\n"
-    "Where appropriate, mention which part of the Act or section you are referring to. \n"
+    "Where appropriate, mention the source of the information (for example, part or section of the Act). \n"
     "Be concise and do not repeat yourself. Use bullet points where appropriate."
 )
 

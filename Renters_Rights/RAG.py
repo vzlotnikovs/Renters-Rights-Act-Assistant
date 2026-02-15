@@ -22,6 +22,8 @@ from dotenv import load_dotenv
 from pathlib import Path
 import uuid
 import bs4
+import re
+from typing import List, Dict
 from datetime import datetime, timedelta
 from dateutil import parser
 from langchain_community.document_loaders import WebBaseLoader, PyPDFLoader
@@ -64,7 +66,7 @@ for doc in web_docs:
     doc.metadata["source"] = URL
 
 for doc in pdf_docs:
-    doc.metadata["source"] = str(PDF_PATH)
+    doc.metadata["source"] = str(PDF_FILENAME)
 
 print(f"Total characters (web source): {len(web_docs[0].page_content)}")
 print(f"Total characters (PDF source): {len(pdf_docs[0].page_content)}")
@@ -99,7 +101,7 @@ vector_store = Chroma(
 ids = vector_store.add_documents(documents=all_splits)
 
 print("Total splits:", len(all_splits))
-print("PDF splits:", sum(1 for d in all_splits if d.metadata.get("source") == str(PDF_PATH)))
+print("PDF splits:", sum(1 for d in all_splits if d.metadata.get("source") == str(PDF_FILENAME)))
 print("Web splits:", sum(1 for d in all_splits if d.metadata.get("source") == URL))
 
 
@@ -114,6 +116,55 @@ def retrieve_context(query: str):
         bullet_points.append(f"Source: {src}\n {content}")
     return "\n".join(bullet_points)
 
+@tool
+def extract_notice_period(query: str) -> str:
+    """
+    Extract all notice periods (in days) from retrieved Renters' Rights Act context.
+    
+    Automatically detects "2 months", "4 weeks", "120 days", etc. and converts to days.
+    Returns: List of periods with sources (or "No periods found").
+    """
+    retrieved_docs = vector_store.similarity_search(query, k=K_CONSTANT)
+    periods_by_source = {}
+    
+    patterns = [
+        r'(\d+(?:\.\d+)?)\s*(?:days?|day)',
+        r'(\d+(?:\.\d+)?)\s*(?:weeks?|week)s?',
+        r'(\d+(?:\.\d+)?)\s*(?:months?|month)s?',
+    ]
+
+    for doc in retrieved_docs:
+        src = doc.metadata.get("source", "Unknown")
+        text = doc.page_content.lower()        
+        matches = []
+        
+        for pattern in patterns:
+            for match in re.finditer(pattern, text):
+                num_str = match.group(1)
+                num = float(num_str)
+                
+                days = 0
+                full_match = match.group(0)
+
+                if 'day' in full_match:
+                    days = num
+                elif 'week' in full_match:
+                    days = num * 7
+                elif 'month' in full_match:
+                    days = num * 30
+                matches.append(f"{int(days)} days")
+        
+        if matches:
+            periods_by_source[src] = list(set(matches))
+    
+    if not periods_by_source:
+        return "No notice periods found in retrieved context."
+    
+    result = "Extracted notice periods:\n\n"
+    for src, periods in periods_by_source.items():
+        result += f"- **{src}**: {', '.join(periods)}\n"
+    
+    return result
 
 @tool
 def calculate_effective_date(notice_date: str, notice_period_days: str):
@@ -148,7 +199,7 @@ checkpointer = InMemorySaver()
 
 agent = create_agent(
     model=chatbot_model,
-    tools=[retrieve_context, calculate_effective_date],
+    tools=[retrieve_context, extract_notice_period, calculate_effective_date],
     system_prompt=prompt,
     checkpointer=checkpointer,
 )

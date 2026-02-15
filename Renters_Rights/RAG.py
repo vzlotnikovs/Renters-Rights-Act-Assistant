@@ -1,5 +1,5 @@
 import os
-from constants import USER_AGENT, DOTENV_PATH, URL, PDF_FILENAME, SUB_DIR, LLM_MODEL, TAG, CHUNK_SIZE, CHUNK_OVERLAP, EMBEDDINGS_MODEL, COLLECTION_NAME, PERSIST_DIR, K_CONSTANT
+from constants import USER_AGENT, DOTENV_PATH, URL, PDF_FILENAME, SUB_DIR, LLM_MODEL, TAG, CHUNK_SIZE, CHUNK_OVERLAP, EMBEDDINGS_MODEL, COLLECTION_NAME, PERSIST_DIR, K_CONSTANT, CHATBOT_PROMPT
 os.environ["USER_AGENT"] = USER_AGENT
 
 from dotenv import load_dotenv
@@ -122,13 +122,7 @@ def calculate_effective_date(notice_date: str, notice_period_days: str):
         return f"Calculation error: {e}"
 
 
-prompt = (
-    "You are an assistant answering questions ONLY about the Renters' Rights Act (applicable to England only).\n"
-    "if the question is not related to the Renters' Rights Act, say that you don't know and that you can only answer questions about the Renters' Rights Act.\n"
-    "To ensure an accurate response, call some or all of the tools available to you before answering a question.\n"
-    "Where appropriate, mention the source of the information (for example, part or section of the Act). \n"
-    "Be concise and do not repeat yourself. Use bullet points where appropriate."
-)
+prompt = CHATBOT_PROMPT 
 
 checkpointer = InMemorySaver()
 

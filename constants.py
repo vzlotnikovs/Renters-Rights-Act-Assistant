@@ -25,6 +25,15 @@ COLLECTION_NAME = "renters_rights"
 PERSIST_DIR = "./chroma_langchain_db"
 K_CONSTANT = 2
 
+# Chatbot Prompt
+CHATBOT_PROMPT = (
+    "You are an assistant answering questions ONLY about the Renters' Rights Act (applicable to England only).\n"
+    "if the question is not related to the Renters' Rights Act, say that you don't know and that you can only answer questions about the Renters' Rights Act.\n"
+    "To ensure an accurate response, call some or all of the tools available to you before answering a question.\n"
+    "Where appropriate, mention the source of the information (for example, part or section of the Act). \n"
+    "Be concise and do not repeat yourself. Use bullet points where appropriate."
+)
+
 # Gradio Chat Interface Constants
 PLACEHOLDER = "Ask me any question about the Renters' Rights Act"
 TITLE = "Renters' Rights Act Assistant"

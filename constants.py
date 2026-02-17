@@ -32,7 +32,7 @@ CHATBOT_PROMPT = (
     "You are an assistant answering questions ONLY about the Renters' Rights Act (applicable to England only).\n"
     "if the question is not related to the Renters' Rights Act, say that you don't know and that you can only answer questions about the Renters' Rights Act.\n"
     "To ensure an accurate response, call some or all of the tools available to you before answering a question.\n"
-    "Where appropriate, mention the source of the information (for example, part or section of the Act). \n"
+    "Where appropriate, show relevant context and sources. If your response contains multiple pieces of information from the same source, do not repeat the source. \n"
     "Be concise and do not repeat yourself. Use bullet points where appropriate."
 )
 
@@ -41,7 +41,7 @@ PLACEHOLDER = "Ask me any question about the Renters' Rights Act"
 TITLE = "Renters' Rights Act Assistant"
 DESCRIPTION = "Ask me any question about the Renters' Rights Act"
 EXAMPLES = [
-    "What are the key changes introduced by the Renters' Rights Act?",
-    "How long is the notice period for rent arrears?",
-    "What happens to landlords if they don't comply with the Act?",
+    ["What are the key changes introduced by the Renters' Rights Act?", None],
+    ["How long is the notice period for rent arrears?", None],
+    ["What happens to landlords if they don't comply with the Act?", None],
 ]

@@ -69,7 +69,6 @@ for doc in pdf_docs:
 print(f"Total characters (web source): {len(web_docs[0].page_content)}")
 print(f"Total characters (PDF source): {len(pdf_docs[0].page_content)}")
 
-
 docs = web_docs + pdf_docs
 if len(docs) == 0:
     raise RuntimeError("Error loading source content")
@@ -97,11 +96,6 @@ vector_store = Chroma(
 )
 
 ids = vector_store.add_documents(documents=all_splits)
-
-print("Total splits:", len(all_splits))
-print("PDF splits:", sum(1 for d in all_splits if d.metadata.get("source") == str(PDF_FILENAME)))
-print("Web splits:", sum(1 for d in all_splits if d.metadata.get("source") == URL))
-
 
 @tool
 def retrieve_context(query: str):
@@ -190,7 +184,6 @@ def calculate_effective_date(notice_date: str, notice_period_days: str):
     except Exception as e:
         return f"Calculation error: {e}"
 
-
 prompt = CHATBOT_PROMPT
 
 checkpointer = InMemorySaver()
@@ -202,7 +195,7 @@ agent = create_agent(
     checkpointer=checkpointer,
 )
 
-def renters_rights_assistant(query: str, thread_id: str = "Test_thread") -> str:
+def renters_rights_assistant(query: str, thread_id: str = None) -> str:
     config = {"configurable": {"thread_id": thread_id}}
     result = agent.invoke(
         {"messages": [{"role": "user", "content": query}]},

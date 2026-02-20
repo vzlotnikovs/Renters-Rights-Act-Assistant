@@ -1,4 +1,5 @@
 import gradio as gr
+import json
 from itertools import count
 from Renters_Rights.RAG import renters_rights_assistant
 from constants import PLACEHOLDER, TITLE, DESCRIPTION, EXAMPLES
@@ -6,9 +7,11 @@ from constants import PLACEHOLDER, TITLE, DESCRIPTION, EXAMPLES
 _session_counter = count(1)
 
 def main():
-    print("Welcome to the Renters' Rights Act Assistant!")
+    print("Welcome to the Renters' Rights Act Assistant! Click the link below to access the chatbot.")
 
     def chat_function(message, history, thread_id):
+        if thread_id is None:
+            thread_id = thread_id_generator()
         return renters_rights_assistant(message, thread_id)
 
     def thread_id_generator():
@@ -24,7 +27,7 @@ def main():
         description=DESCRIPTION,
         examples=EXAMPLES,
     ).launch(
-        # share=True
+        share=True
     )
 
 

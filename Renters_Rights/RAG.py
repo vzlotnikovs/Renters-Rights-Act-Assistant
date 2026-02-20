@@ -102,7 +102,14 @@ ids = vector_store.add_documents(documents=all_splits)
 
 @tool
 def retrieve_context(query: str):
-    """Retrieve information to help answer a query."""
+    """Retrieve information to help answer a query.
+
+    Args:
+        query: The user query.
+
+    Returns:
+        str: A formatted string containing retrieved documents with their sources.
+    """
     retrieved_docs = vector_store.similarity_search(query, k=K_CONSTANT)
     bullet_points = []
     for doc in retrieved_docs:
@@ -114,11 +121,19 @@ def retrieve_context(query: str):
 
 @tool
 def extract_notice_period(query: str) -> str:
-    """
-    Extract all notice periods (in days) from retrieved Renters' Rights Act context.
+    """Extract all notice periods (in days) from retrieved Renters' Rights Act context.
 
-    Automatically detects "2 months", "4 weeks", "120 days", etc. and converts to days.
-    Returns: List of periods with sources (or "No periods found").
+    Automatically detects time periods like "2 months", "4 weeks", "120 days", etc.
+    and converts them to days. Searches through retrieved documents from the vector
+    store and extracts all matching notice periods grouped by source.
+
+    Args:
+        query: The user query.
+
+    Returns:
+        str: A formatted string containing extracted notice periods grouped by source,
+            or "No notice periods found in retrieved context." if none are found.
+            Format: "Extracted notice periods:\n\n- **{source}**: {periods}\n"
     """
     retrieved_docs = vector_store.similarity_search(query, k=K_CONSTANT)
     periods_by_source = {}
@@ -165,13 +180,24 @@ def extract_notice_period(query: str) -> str:
 
 @tool
 def calculate_effective_date(notice_date: str, notice_period_days: str):
-    """
-    Calculate effective date (e.g. date to vacate the property, date when the new rent becomes effective, etc.) given notice date (notice_date)
-    and notice period (notice_period_days) from Renters' Rights Act.
+    """Calculate effective date based on notice date and notice period.
+
+    Calculates the effective date (e.g., date to vacate the property, date when
+    the new rent becomes effective, etc.) given a notice date and notice period
+    from the Renters' Rights Act.
 
     Args:
-        notice_date: Notice date ("2026-02-08", "today", "1 Jan 2026", "08/02/2026")
-        notice_period_days: Days as string from RAG ("30", "120", etc.)
+        notice_date: The notice date in various formats. Accepts:
+            - ISO format: "2026-02-08"
+            - Relative: "today"
+            - Other date formats: "1 Jan 2026", "08/02/2026", etc.
+        notice_period_days: The notice period in days as a string (e.g., "30", "120").
+
+    Returns:
+        tuple: A tuple containing:
+            - str: The effective date in "YYYY-MM-DD" format.
+            - dict: A dictionary with keys "date" (str) and "days" (int).
+        str: An error message string if the input is invalid or calculation fails.
     """
     try:
         if notice_date.lower() == "today":
@@ -203,6 +229,21 @@ agent = create_agent(
 
 
 def renters_rights_assistant(query: str, thread_id: str) -> str:
+    """Process a user query using the Renters' Rights assistant agent.
+
+    Invokes the LangGraph agent with the provided query and thread ID to maintain
+    conversation context. The agent uses tools to retrieve context, extract notice
+    periods, and calculate effective dates from the Renters' Rights Act.
+
+    Args:
+        query: The user's question or query about renters' rights.
+        thread_id: A unique identifier for the conversation thread to maintain
+            context across multiple interactions.
+
+    Returns:
+        str: The assistant's response content as a string. This is extracted from
+            the last message in the agent's response.
+    """
     config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
     result = agent.invoke(
         {"messages": [{"role": "user", "content": query}]},

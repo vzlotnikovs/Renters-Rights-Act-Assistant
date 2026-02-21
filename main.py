@@ -28,9 +28,7 @@ def main():
         title=TITLE,
         description=DESCRIPTION,
         examples=EXAMPLES,
-    ).launch(
-        # share=True
-    )
+    ).launch()
 
 
 if __name__ == "__main__":

@@ -40,64 +40,81 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 if not OPENAI_API_KEY:
     raise RuntimeError("OPENAI_API_KEY not set")
 
-chatbot_model = init_chat_model(LLM_MODEL)
 
-BASE_DIR = Path(__file__).resolve().parent
-PDF_PATH = BASE_DIR / SUB_DIR / PDF_FILENAME
+def load_source_content(SUB_DIR, PDF_FILENAME, URL, TAG):
+    try:
+        BASE_DIR = Path(__file__).resolve().parent
+        PDF_PATH = BASE_DIR / SUB_DIR / PDF_FILENAME
 
-bs4_strainer = bs4.SoupStrainer(TAG)
-web_loader = WebBaseLoader(
-    web_paths=(URL,),
-    bs_kwargs={"parse_only": bs4_strainer},
+        bs4_strainer = bs4.SoupStrainer(TAG)
+        web_loader = WebBaseLoader(
+            web_paths=(URL,),
+            bs_kwargs={"parse_only": bs4_strainer},
+        )
+
+        pdf_loader = PyPDFLoader(str(PDF_PATH))
+
+        web_sources = web_loader.load()
+        if not web_sources:
+            raise RuntimeError("No web documents loaded")
+
+        pdf_sources = pdf_loader.load()
+        if not pdf_sources:
+            raise RuntimeError("No PDF documents loaded")
+
+        for source in web_sources:
+            source.metadata["source"] = URL
+
+        for source in pdf_sources:
+            source.metadata["source"] = str(PDF_FILENAME)
+
+        sources = web_sources + pdf_sources
+        if len(sources) == 0:
+            raise RuntimeError("Error loading source content")
+        else:
+            print("Source content loaded successfully.")
+        return sources
+    except ConnectionError as e:
+        raise RuntimeError(f"[WARNING] Could not reach {URL}: {e}")
+    except Exception as e:
+        raise RuntimeError(f"[ERROR] Request failed for {URL}: {e}")
+
+
+sources = load_source_content(SUB_DIR, PDF_FILENAME, URL, TAG)
+
+
+def create_vector_store(
+    CHUNK_SIZE, CHUNK_OVERLAP, EMBEDDINGS_MODEL, COLLECTION_NAME, PERSIST_DIR
+):
+    try:
+        text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=CHUNK_SIZE,
+            chunk_overlap=CHUNK_OVERLAP,
+            add_start_index=True,
+        )
+
+        all_splits = text_splitter.split_documents(sources)
+
+        embed_model = OpenAIEmbeddings(
+            model=EMBEDDINGS_MODEL,
+        )
+
+        vector_store = Chroma(
+            collection_name=COLLECTION_NAME,
+            embedding_function=embed_model,
+            persist_directory=PERSIST_DIR,
+        )
+
+        vector_store.add_documents(documents=all_splits)
+        print("Vector store created successfully.")
+        return vector_store
+    except Exception as e:
+        raise RuntimeError(f"[ERROR] Error creating vector store: {e}")
+
+
+vector_store = create_vector_store(
+    CHUNK_SIZE, CHUNK_OVERLAP, EMBEDDINGS_MODEL, COLLECTION_NAME, PERSIST_DIR
 )
-
-pdf_loader = PyPDFLoader(str(PDF_PATH))
-
-try:
-    web_docs = web_loader.load()
-except ConnectionError as e:
-    raise RuntimeError(f"[WARNING] Could not reach {URL}: {e}")
-except Exception as e:
-    raise RuntimeError(f"[ERROR] Request failed for {URL}: {e}")
-
-if not web_docs:
-    raise RuntimeError("No web documents loaded")
-
-pdf_docs = pdf_loader.load()
-if not pdf_docs:
-    raise RuntimeError("No PDF documents loaded")
-
-for doc in web_docs:
-    doc.metadata["source"] = URL
-
-for doc in pdf_docs:
-    doc.metadata["source"] = str(PDF_FILENAME)
-
-docs = web_docs + pdf_docs
-if len(docs) == 0:
-    raise RuntimeError("Error loading source content")
-else:
-    print("Source content loaded successfully.")
-
-text_splitter = RecursiveCharacterTextSplitter(
-    chunk_size=CHUNK_SIZE,
-    chunk_overlap=CHUNK_OVERLAP,
-    add_start_index=True,
-)
-
-all_splits = text_splitter.split_documents(docs)
-
-embed_model = OpenAIEmbeddings(
-    model=EMBEDDINGS_MODEL,
-)
-
-vector_store = Chroma(
-    collection_name=COLLECTION_NAME,
-    embedding_function=embed_model,
-    persist_directory=PERSIST_DIR,
-)
-
-ids = vector_store.add_documents(documents=all_splits)
 
 
 @tool
@@ -135,7 +152,7 @@ def extract_notice_period(query: str) -> str:
             or "No notice periods found in retrieved context." if none are found.
             Format: "Extracted notice periods:\n\n- **{source}**: {periods}\n"
     """
-    retrieved_docs = vector_store.similarity_search(query, k=K_CONSTANT)
+    retrieved_sources = vector_store.similarity_search(query, k=K_CONSTANT)
     periods_by_source = {}
 
     patterns = [
@@ -144,9 +161,9 @@ def extract_notice_period(query: str) -> str:
         r"(\d+(?:\.\d+)?)\s*(?:months?|month)s?",
     ]
 
-    for doc in retrieved_docs:
-        src = doc.metadata.get("source", "Unknown")
-        text = doc.page_content.lower()
+    for source in retrieved_sources:
+        src = source.metadata.get("source", "Unknown")
+        text = source.page_content.lower()
         matches = []
 
         for pattern in patterns:
@@ -216,14 +233,12 @@ def calculate_effective_date(notice_date: str, notice_period_days: str):
         return f"Calculation error: {e}"
 
 
-prompt = CHATBOT_PROMPT
-
 checkpointer = InMemorySaver()
 
 agent = create_agent(
-    model=chatbot_model,
+    model=init_chat_model(LLM_MODEL),
     tools=[retrieve_context, extract_notice_period, calculate_effective_date],
-    system_prompt=prompt,
+    system_prompt=CHATBOT_PROMPT,
     checkpointer=checkpointer,
 )
 

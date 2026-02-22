@@ -96,6 +96,8 @@ def load_source_content(
         else:
             print("Source content loaded successfully.")
         return sources
+    except FileNotFoundError as e:
+        raise RuntimeError(f"[ERROR] PDF file not found: {e}")
     except ConnectionError as e:
         raise RuntimeError(f"[WARNING] Could not reach {URL}: {e}")
     except Exception as e:
@@ -171,13 +173,16 @@ def retrieve_context(query: str) -> str:
     Returns:
         str: A formatted string containing retrieved documents with their sources.
     """
-    retrieved_docs = vector_store.similarity_search(query, k=K_CONSTANT)
-    bullet_points = []
-    for doc in retrieved_docs:
-        src = doc.metadata.get("source", "Unknown")
-        content = doc.page_content.replace("\n", " ")
-        bullet_points.append(f"Source: {src}\n {content}")
-    return "\n".join(bullet_points)
+    try:
+        retrieved_docs = vector_store.similarity_search(query, k=K_CONSTANT)
+        bullet_points = []
+        for doc in retrieved_docs:
+            src = doc.metadata.get("source", "Unknown")
+            content = doc.page_content.replace("\n", " ")
+            bullet_points.append(f"Source: {src}\n {content}")
+        return "\n".join(bullet_points)
+    except Exception as e:
+        raise RuntimeError(f"[ERROR] Error retrieving context: {e}")
 
 
 @tool
@@ -196,47 +201,50 @@ def extract_notice_period(query: str) -> str:
             or "No notice periods found in retrieved context." if none are found.
             Format: "Extracted notice periods:\n\n- **{source}**: {periods}\n"
     """
-    retrieved_sources = vector_store.similarity_search(query, k=K_CONSTANT)
-    periods_by_source = {}
+    try:
+        retrieved_sources = vector_store.similarity_search(query, k=K_CONSTANT)
+        periods_by_source = {}
 
-    patterns = [
-        r"(\d+(?:\.\d+)?)\s*(?:days?|day)",
-        r"(\d+(?:\.\d+)?)\s*(?:weeks?|week)s?",
-        r"(\d+(?:\.\d+)?)\s*(?:months?|month)s?",
-    ]
+        patterns = [
+            r"(\d+(?:\.\d+)?)\s*(?:days?|day)",
+            r"(\d+(?:\.\d+)?)\s*(?:weeks?|week)s?",
+            r"(\d+(?:\.\d+)?)\s*(?:months?|month)s?",
+        ]
 
-    for source in retrieved_sources:
-        src = source.metadata.get("source", "Unknown")
-        text = source.page_content.lower()
-        matches = []
+        for source in retrieved_sources:
+            src = source.metadata.get("source", "Unknown")
+            text = source.page_content.lower()
+            matches = []
 
-        for pattern in patterns:
-            for match in re.finditer(pattern, text):
-                num_str = match.group(1)
-                num = int(num_str)
+            for pattern in patterns:
+                for match in re.finditer(pattern, text):
+                    num_str = match.group(1)
+                    num = int(num_str)
 
-                days = 0
-                full_match = match.group(0)
+                    days = 0
+                    full_match = match.group(0)
 
-                if "day" in full_match:
-                    days = num
-                elif "week" in full_match:
-                    days = num * 7
-                elif "month" in full_match:
-                    days = num * 30
-                matches.append(f"{int(days)} days")
+                    if "day" in full_match:
+                        days = num
+                    elif "week" in full_match:
+                        days = num * 7
+                    elif "month" in full_match:
+                        days = num * 30
+                    matches.append(f"{int(days)} days")
 
-        if matches:
-            periods_by_source[src] = list(set(matches))
+            if matches:
+                periods_by_source[src] = list(set(matches))
 
-    if not periods_by_source:
-        return "No notice periods found in retrieved context."
+        if not periods_by_source:
+            return "No notice periods found in retrieved context."
 
-    result = "Extracted notice periods:\n\n"
-    for src, periods in periods_by_source.items():
-        result += f"- **{src}**: {', '.join(periods)}\n"
+        result = "Extracted notice periods:\n\n"
+        for src, periods in periods_by_source.items():
+            result += f"- **{src}**: {', '.join(periods)}\n"
 
-    return result
+        return result
+    except Exception as e:
+        raise RuntimeError(f"[ERROR] Error extracting notice periods: {e}")
 
 
 @tool
@@ -275,7 +283,7 @@ def calculate_effective_date(
     except ValueError as e:
         return f"Invalid input: {e}. Use format like '2026-02-08' or 'today' for dates, and use numbers for days."
     except Exception as e:
-        return f"Calculation error: {e}"
+        raise RuntimeError(f"[ERROR] Error calculating effective date: {e}")
 
 
 checkpointer = InMemorySaver()
@@ -304,11 +312,14 @@ def renters_rights_assistant(query: str, thread_id: str) -> str:
         str: The assistant's response content as a string. This is extracted from
             the last message in the agent's response.
     """
-    config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
-    result = agent.invoke(
-        {"messages": [{"role": "user", "content": query}]},
-        config=config,
-    )
-    last = result["messages"][-1]
-    content = last.content if hasattr(last, "content") else str(last)
-    return content
+    try:
+        config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
+        result = agent.invoke(
+            {"messages": [{"role": "user", "content": query}]},
+            config=config,
+        )
+        last = result["messages"][-1]
+        content = last.content if hasattr(last, "content") else str(last)
+        return content
+    except Exception as e:
+        raise RuntimeError(f"[ERROR] Error in RAG assistant: {e}")

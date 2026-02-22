@@ -27,20 +27,27 @@ def main() -> None:
         """
         Handles chat messages and generates responses using the RAG assistant.
         """
-        if thread_id is None:
-            thread_id = thread_id_generator()
-        return renters_rights_assistant(message, thread_id)
+        try:
+            if thread_id is None:
+                thread_id = thread_id_generator()
+            return renters_rights_assistant(message, thread_id)
+        except Exception as e:
+            return "Unexpected error while answering your question. Please try again."
 
-    gr.ChatInterface(
-        chat_function,
-        additional_inputs=[gr.State(thread_id_generator)],
-        additional_inputs_accordion=gr.Accordion(visible=False),
-        chatbot=gr.Chatbot(height=300),
-        textbox=gr.Textbox(placeholder=PLACEHOLDER, container=False, scale=7),
-        title=TITLE,
-        description=DESCRIPTION,
-        examples=EXAMPLES,
-    ).launch()
+
+    try:
+        gr.ChatInterface(
+            chat_function,
+            additional_inputs=[gr.State(thread_id_generator)],
+            additional_inputs_accordion=gr.Accordion(visible=False),
+            chatbot=gr.Chatbot(height=300),
+            textbox=gr.Textbox(placeholder=PLACEHOLDER, container=False, scale=7),
+            title=TITLE,
+            description=DESCRIPTION,
+            examples=EXAMPLES,
+        ).launch()
+    except Exception as e:
+        print(f"Error launching Gradio interface: {e}")
 
 
 if __name__ == "__main__":

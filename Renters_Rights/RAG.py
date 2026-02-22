@@ -1,4 +1,7 @@
+"""Retrieval-Augmented Generation (RAG) module for the Renters' Rights assistant."""
+
 import os
+from typing import Union, Any, List, Tuple, Dict
 from constants import (
     USER_AGENT,
     DOTENV_PATH,
@@ -41,7 +44,26 @@ if not OPENAI_API_KEY:
     raise RuntimeError("OPENAI_API_KEY not set")
 
 
-def load_source_content(SUB_DIR, PDF_FILENAME, URL, TAG):
+def load_source_content(
+    SUB_DIR: str, PDF_FILENAME: str, URL: str, TAG: str
+) -> List[Any]:
+    """Load source content from web and PDF documents.
+
+    Loads content from a specified URL and a PDF file, adding metadata to each
+    source indicating its origin.
+
+    Args:
+        SUB_DIR (str): The subdirectory where the PDF is located.
+        PDF_FILENAME (str): The filename of the PDF to load.
+        URL (str): The URL of the web page to load.
+        TAG (str): The HTML tag to extract from the web page.
+
+    Returns:
+        list: A list of Document objects loaded from the sources.
+
+    Raises:
+        RuntimeError: If document loading fails or network request fails.
+    """
     try:
         BASE_DIR = Path(__file__).resolve().parent
         PDF_PATH = BASE_DIR / SUB_DIR / PDF_FILENAME
@@ -84,8 +106,30 @@ sources = load_source_content(SUB_DIR, PDF_FILENAME, URL, TAG)
 
 
 def create_vector_store(
-    CHUNK_SIZE, CHUNK_OVERLAP, EMBEDDINGS_MODEL, COLLECTION_NAME, PERSIST_DIR
-):
+    CHUNK_SIZE: int,
+    CHUNK_OVERLAP: int,
+    EMBEDDINGS_MODEL: str,
+    COLLECTION_NAME: str,
+    PERSIST_DIR: str,
+) -> Chroma:
+    """Create and persist a Chroma vector store from loaded documents.
+
+    Splits the globally loaded source documents into chunks and stores them
+    in a Chroma vector database using OpenAI embeddings.
+
+    Args:
+        CHUNK_SIZE (int): The maximum size of each text chunk.
+        CHUNK_OVERLAP (int): The overlap size between chunks.
+        EMBEDDINGS_MODEL (str): The name of the OpenAI embeddings model to use.
+        COLLECTION_NAME (str): The name of the Chroma collection.
+        PERSIST_DIR (str): The directory where the vector store will be saved.
+
+    Returns:
+        Chroma: The initialized and populated Chroma vector store.
+
+    Raises:
+        RuntimeError: If an error occurs during vector store creation.
+    """
     try:
         text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=CHUNK_SIZE,
@@ -118,11 +162,11 @@ vector_store = create_vector_store(
 
 
 @tool
-def retrieve_context(query: str):
+def retrieve_context(query: str) -> str:
     """Retrieve information to help answer a query.
 
     Args:
-        query: The user query.
+        query (str): The user query.
 
     Returns:
         str: A formatted string containing retrieved documents with their sources.
@@ -145,7 +189,7 @@ def extract_notice_period(query: str) -> str:
     store and extracts all matching notice periods grouped by source.
 
     Args:
-        query: The user query.
+        query (str): The user query.
 
     Returns:
         str: A formatted string containing extracted notice periods grouped by source,
@@ -196,7 +240,9 @@ def extract_notice_period(query: str) -> str:
 
 
 @tool
-def calculate_effective_date(notice_date: str, notice_period_days: str):
+def calculate_effective_date(
+    notice_date: str, notice_period_days: str
+) -> Union[Tuple[str, Dict[str, Any]], str]:
     """Calculate effective date based on notice date and notice period.
 
     Calculates the effective date (e.g., date to vacate the property, date when
@@ -204,17 +250,16 @@ def calculate_effective_date(notice_date: str, notice_period_days: str):
     from the Renters' Rights Act.
 
     Args:
-        notice_date: The notice date in various formats. Accepts:
+        notice_date (str): The notice date in various formats. Accepts:
             - ISO format: "2026-02-08"
             - Relative: "today"
             - Other date formats: "1 Jan 2026", "08/02/2026", etc.
-        notice_period_days: The notice period in days as a string (e.g., "30", "120").
+        notice_period_days (str): The notice period in days as a string (e.g., "30", "120").
 
     Returns:
-        tuple: A tuple containing:
-            - str: The effective date in "YYYY-MM-DD" format.
-            - dict: A dictionary with keys "date" (str) and "days" (int).
-        str: An error message string if the input is invalid or calculation fails.
+        tuple or str: A tuple containing the effective date (str) and a dictionary
+            with keys "date" and "days" on success. An error message string if the
+            input is invalid or calculation fails.
     """
     try:
         if notice_date.lower() == "today":
@@ -251,8 +296,8 @@ def renters_rights_assistant(query: str, thread_id: str) -> str:
     periods, and calculate effective dates from the Renters' Rights Act.
 
     Args:
-        query: The user's question or query about renters' rights.
-        thread_id: A unique identifier for the conversation thread to maintain
+        query (str): The user's question or query about renters' rights.
+        thread_id (str): A unique identifier for the conversation thread to maintain
             context across multiple interactions.
 
     Returns:

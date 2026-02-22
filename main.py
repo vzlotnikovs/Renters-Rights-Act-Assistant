@@ -1,23 +1,35 @@
 import gradio as gr
 from itertools import count
+from typing import Optional, List, Any
 from Renters_Rights.RAG import renters_rights_assistant
 from constants import PLACEHOLDER, TITLE, DESCRIPTION, EXAMPLES
 
 _session_counter = count(1)
 
 
-def main():
+def main() -> None:
+    """
+    Launches the Gradio chatbot interface for the Renters' Rights Act Assistant.
+    """
     print(
         "Welcome to the Renters' Rights Act Assistant! Click the link below to access the chatbot."
     )
 
-    def chat_function(message, history, thread_id):
+    def thread_id_generator() -> str:
+        """
+        Generates unique thread IDs for chat sessions.
+        """
+        return str(next(_session_counter))
+
+    def chat_function(
+        message: str, history: List[Any], thread_id: Optional[str]
+    ) -> str:
+        """
+        Handles chat messages and generates responses using the RAG assistant.
+        """
         if thread_id is None:
             thread_id = thread_id_generator()
         return renters_rights_assistant(message, thread_id)
-
-    def thread_id_generator():
-        return next(_session_counter)
 
     gr.ChatInterface(
         chat_function,

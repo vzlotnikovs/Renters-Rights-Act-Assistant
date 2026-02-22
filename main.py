@@ -45,7 +45,7 @@ def main() -> None:
             title=TITLE,
             description=DESCRIPTION,
             examples=EXAMPLES,
-        ).launch()
+        ).launch(share=True)
     except Exception as e:
         print(f"Error launching Gradio interface: {e}")
 

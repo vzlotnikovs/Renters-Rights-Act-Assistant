@@ -39,9 +39,9 @@ CHATBOT_PROMPT = (
 # Gradio Chat Interface Constants
 PLACEHOLDER = "Ask me any question about the Renters' Rights Act"
 TITLE = "Renters' Rights Act Assistant"
-DESCRIPTION = "This chatbot helps answer questions about the Renters' Rights Act. Both tenants and landlors can use the chatbot to find out how the new Act applies to them."
+DESCRIPTION = "This chatbot answers questions about the Renters' Rights Act in England. Both tenants and landlords (as well as anyone else) can use the chatbot to find out how the Act applies to them. It is not a substitute for professional legal advice."
 EXAMPLES = [
-    ["What are the key changes introduced by the Renters' Rights Act?", None],
-    ["How long is the notice period for rent arrears?", None],
-    ["What happens to landlords if they don't comply with the Act?", None],
+    ["Summarise key changes introduced by the Renters' Rights Act."],
+    ["How long is the notice period for rent arrears?"],
+    ["What happens to landlords if they don't comply with the Act?"],
 ]

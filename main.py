@@ -33,6 +33,7 @@ def main() -> None:
             return renters_rights_assistant(message, thread_id)
         except Exception as e:
             print(f"Unexpected error while answering your question: {e}.")
+            return "Unexpected error while answering your question. Please try again."
 
     try:
         gr.ChatInterface(

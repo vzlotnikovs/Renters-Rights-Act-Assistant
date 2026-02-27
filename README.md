@@ -1,3 +1,5 @@
+Turing College AI Engineering Sprint 2 (Building Applications with LangChain & RAGs) Project
+
 # Renters' Rights Act Assistant
 
 The new Renters' Rights Act in England represents the biggest change to the English private rental sector in over 30 years. The Act aims to modernise the sector, giving greater security to tenants while also providing landlords with reliable, long-term occupancy of their property investment. These changes will apply to both new and existing tenancies.
